@@ -8,6 +8,8 @@ use vst::util::AtomicFloat;
 
 struct ComplexClipParams {
     threshold: AtomicFloat,
+    lower_threshold: AtomicFloat,
+    scale: AtomicFloat,
     gain: AtomicFloat,
 }
 
@@ -15,6 +17,8 @@ impl Default for ComplexClipParams {
     fn default() -> ComplexClipParams {
         ComplexClipParams {
             threshold: AtomicFloat::new(1.0),
+            lower_threshold: AtomicFloat::new(1.0),
+            scale: AtomicFloat::new(0.0),
             gain: AtomicFloat::new(0.5),
         }
     }
@@ -41,7 +45,7 @@ impl Plugin for ComplexClip {
 
             inputs: 2,
             outputs: 2,
-            parameters: 2,
+            parameters: 4,
             category: Category::Effect,
 
             ..Info::default()
@@ -50,16 +54,39 @@ impl Plugin for ComplexClip {
 
     fn process(&mut self, buffer: &mut AudioBuffer<f32>) {
         let threshold = self.params.threshold.get() / 3.0;
+        let lower_threshold = self.params.lower_threshold.get() / 3.0;
+        let scale = self.params.scale.get();
         let gain = self.params.gain.get();
         buffer.zip().for_each(|(input_buffer, output_buffer)| {
             input_buffer
                 .iter()
                 .zip(output_buffer)
                 .for_each(|(input_sample, output_sample)| {
-                    *output_sample = if *input_sample >= 0.0 {
-                        (input_sample.min(threshold) / threshold) * gain
+                    let positive = *input_sample >= 0.0;
+                    let starting_value = if positive == true {
+                        input_sample.min(threshold)
                     } else {
-                        (input_sample.max(-threshold) / threshold) * gain
+                        input_sample.max(-lower_threshold)
+                    };
+                    let clipped = if positive == true {
+                        input_sample > &threshold
+                    } else {
+                        input_sample < &lower_threshold
+                    };
+                    *output_sample = if clipped == true {
+                        if positive == true {
+                            let difference = input_sample - threshold;
+                            ((starting_value + (difference * scale)) / threshold) * gain
+                        } else {
+                            let difference = input_sample + lower_threshold;
+                            ((starting_value + (difference * scale)) / lower_threshold) * gain
+                        }
+                    } else {
+                        if positive == true {
+                            (starting_value / threshold) * gain
+                        } else {
+                            (starting_value / lower_threshold) * gain
+                        }
                     };
                 });
         });
@@ -74,7 +101,9 @@ impl PluginParameters for ComplexClipParams {
     fn get_parameter(&self, index: i32) -> f32 {
         match index {
             0 => self.threshold.get(),
-            1 => self.gain.get(),
+            1 => self.lower_threshold.get(),
+            2 => self.scale.get(),
+            3 => self.gain.get(),
             _ => 0.0,
         }
     }
@@ -82,7 +111,9 @@ impl PluginParameters for ComplexClipParams {
     fn set_parameter(&self, index: i32, value: f32) {
         match index {
             0 => self.threshold.set(value.max(0.001)),
-            1 => self.gain.set(value.max(0.001)),
+            1 => self.lower_threshold.set(value.max(0.001)),
+            2 => self.scale.set(value.max(0.001)),
+            3 => self.gain.set(value.max(0.001)),
             _ => (),
         }
     }
@@ -90,22 +121,26 @@ impl PluginParameters for ComplexClipParams {
     fn get_parameter_name(&self, index: i32) -> String {
         match index {
             0 => "threshold".to_string(),
-            1 => "gain".to_string(),
+            1 => "lower_threshold".to_string(),
+            2 => "scale".to_string(),
+            3 => "gain".to_string(),
             _ => "".to_string(),
         }
     }
 
     fn get_parameter_text(&self, index: i32) -> String {
         match index {
-            0 => format!("{}", self.threshold.get() * 100.0),
-            1 => format!("{}", self.gain.get() * 100.0),
+            0 => format!("{}", self.threshold.get() * 100.0 / 3.0),
+            1 => format!("{}", self.lower_threshold.get() * 100.0 / 3.0),
+            2 => format!("{}", self.scale.get() * 100.0),
+            3 => format!("{}", self.gain.get() * 100.0),
             _ => "".to_string(),
         }
     }
 
     fn get_parameter_label(&self, index: i32) -> String {
         match index {
-            0 | 1 => "%".to_string(),
+            0 | 1 | 2 | 3 => "%".to_string(),
             _ => "".to_string(),
         }
     }
