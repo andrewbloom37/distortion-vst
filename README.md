@@ -20,7 +20,7 @@ The portion of the negative part of the waveform which will be clipped
 
 ### scale
 
-The amount of clipping which occurs... the waveform will be clipped, and a scaled amount that was clippd will be added back.
+The amount of clipping which occurs... the waveform will be clipped, and a scaled amount that was clipped will be added back.
 
 ### gain
 
