@@ -4,6 +4,7 @@
 
 # vim
 tags
+tags.lock
 
 # macOS
 .DS_Store

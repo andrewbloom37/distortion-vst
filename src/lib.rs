@@ -9,7 +9,7 @@ use vst::util::AtomicFloat;
 struct ComplexClipParams {
     threshold: AtomicFloat,
     lower_threshold: AtomicFloat,
-    scale: AtomicFloat,
+    fold: AtomicFloat,
     gain: AtomicFloat,
 }
 
@@ -18,7 +18,7 @@ impl Default for ComplexClipParams {
         ComplexClipParams {
             threshold: AtomicFloat::new(1.0),
             lower_threshold: AtomicFloat::new(1.0),
-            scale: AtomicFloat::new(0.0),
+            fold: AtomicFloat::new(0.0),
             gain: AtomicFloat::new(0.5),
         }
     }
@@ -53,9 +53,9 @@ impl Plugin for ComplexClip {
     }
 
     fn process(&mut self, buffer: &mut AudioBuffer<f32>) {
-        let threshold = self.params.threshold.get() / 3.0;
-        let lower_threshold = self.params.lower_threshold.get() / 3.0;
-        let scale = self.params.scale.get();
+        let threshold = self.params.threshold.get();
+        let lower_threshold = self.params.lower_threshold.get();
+        let fold = self.params.fold.get();
         let gain = self.params.gain.get();
         buffer.zip().for_each(|(input_buffer, output_buffer)| {
             input_buffer
@@ -76,10 +76,10 @@ impl Plugin for ComplexClip {
                     *output_sample = if clipped == true {
                         if positive == true {
                             let difference = input_sample - threshold;
-                            ((starting_value + (difference * scale)) / threshold) * gain
+                            ((starting_value - (difference * fold)) / threshold) * gain
                         } else {
                             let difference = input_sample + lower_threshold;
-                            ((starting_value + (difference * scale)) / lower_threshold) * gain
+                            ((starting_value - (difference * fold)) / lower_threshold) * gain
                         }
                     } else {
                         if positive == true {
@@ -102,7 +102,7 @@ impl PluginParameters for ComplexClipParams {
         match index {
             0 => self.threshold.get(),
             1 => self.lower_threshold.get(),
-            2 => self.scale.get(),
+            2 => self.fold.get(),
             3 => self.gain.get(),
             _ => 0.0,
         }
@@ -110,10 +110,10 @@ impl PluginParameters for ComplexClipParams {
 
     fn set_parameter(&self, index: i32, value: f32) {
         match index {
-            0 => self.threshold.set(value.max(0.001)),
-            1 => self.lower_threshold.set(value.max(0.001)),
-            2 => self.scale.set(value.max(0.001)),
-            3 => self.gain.set(value.max(0.001)),
+            0 => self.threshold.set(value.max(0.05)),
+            1 => self.lower_threshold.set(value.max(0.05)),
+            2 => self.fold.set(value.min(0.50)),
+            3 => self.gain.set(value.max(0.01)),
             _ => (),
         }
     }
@@ -122,7 +122,7 @@ impl PluginParameters for ComplexClipParams {
         match index {
             0 => "threshold".to_string(),
             1 => "lower_threshold".to_string(),
-            2 => "scale".to_string(),
+            2 => "fold".to_string(),
             3 => "gain".to_string(),
             _ => "".to_string(),
         }
@@ -130,9 +130,9 @@ impl PluginParameters for ComplexClipParams {
 
     fn get_parameter_text(&self, index: i32) -> String {
         match index {
-            0 => format!("{}", self.threshold.get() * 100.0 / 3.0),
-            1 => format!("{}", self.lower_threshold.get() * 100.0 / 3.0),
-            2 => format!("{}", self.scale.get() * 100.0),
+            0 => format!("{}", self.threshold.get() * 100.0),
+            1 => format!("{}", self.lower_threshold.get() * 100.0),
+            2 => format!("{}", self.fold.get() * 100.0),
             3 => format!("{}", self.gain.get() * 100.0),
             _ => "".to_string(),
         }
