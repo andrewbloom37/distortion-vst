@@ -5,8 +5,8 @@ A vst audio plugin for performing complex digital clipping.
 ## building
 
 To build, [install rust/cargo](https://www.rust-lang.org/) and run `cargo build` in the project root.
-Then, if compiling on macOS, run [this script](https://github.com/RustAudio/vst-rs/blob/master/osx_vst_bundler.sh)
-and copy the vst to `Library/Audio/Plug-Ins/VST/`. Then it should register in your DAW of choice on next startup.
+
+If on macOS, a `build_vst` script is provided which will build the vst and output it in your `~` folder. To use this, move it to your `Library/Audio/VST/` folder. Run this script in from the project root folder, otherwise it will not work properly.
 
 ## parameters
 
@@ -18,9 +18,9 @@ The portion of the positive part of the waveform which will be clipped
 
 The portion of the negative part of the waveform which will be clipped
 
-### scale
+### fold
 
-The amount of clipping which occurs... the waveform will be clipped, and a scaled amount that was clipped will be added back.
+The amount of foldback which occurs... the waveform will be clipped based on the threshold values, and a scaled amount that was clipped will be subtracted back.
 
 ### gain
 
